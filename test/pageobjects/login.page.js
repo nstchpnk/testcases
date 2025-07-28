@@ -20,6 +20,22 @@ class LoginPage extends Page {
         return $('#login-button');
     }
 
+    get btnBurger() {
+        return $('#react-burger-menu-btn'); 
+    }
+
+    get btnLogout() {
+        return $('#logout_sidebar_link'); 
+    }
+
+    get menuWrap() {
+        return $('.bm-menu-wrap');
+    }
+
+    get menu() {
+        return $('.bm-menu');
+    }
+
     /**
      * a method to encapsule automation code to interact with the page
      * e.g. to login using username and password
@@ -31,6 +47,40 @@ class LoginPage extends Page {
         await this.inputPassword.setValue(password);
         await this.btnSubmit.waitForDisplayed({ timeout: 10000 });
         await this.btnSubmit.click();
+    }
+
+    async logout() {
+        await this.btnBurger.waitForDisplayed({ timeout: 10000 });
+        await this.btnBurger.waitForClickable({ timeout: 10000 });
+        
+        await this.btnBurger.click();
+        
+        await browser.waitUntil(async () => {
+            const menuWrap = await this.menuWrap;
+            const isHidden = await menuWrap.getAttribute('hidden');
+            const ariaHidden = await menuWrap.getAttribute('aria-hidden');
+            return isHidden === null && ariaHidden === 'false';
+        }, {
+            timeout: 10000,
+            timeoutMsg: 'Menu did not open within 10 seconds'
+        });
+
+        await browser.waitUntil(async () => {
+            const menuWrap = await this.menuWrap;
+            const transform = await menuWrap.getCSSProperty('transform');
+            return !transform.value.includes('-100%');
+        }, {
+            timeout: 10000,
+            timeoutMsg: 'Menu animation did not complete'
+        });
+
+        await browser.pause(1000);
+
+        await this.btnLogout.waitForDisplayed({ timeout: 10000 });
+        await this.btnLogout.waitForClickable({ timeout: 10000 });
+        await this.btnLogout.click();
+        
+        await browser.pause(2000);
     }
 
     /**
