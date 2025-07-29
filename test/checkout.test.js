@@ -12,7 +12,7 @@ describe('Checkout Tests', () => {
         }, { timeout: 10000, timeoutMsg: 'Did not navigate to inventory page' });
     });
 
-    it('TC8: Valid Checkout', async () => {
+    it('TC11: Valid Checkout', async () => {
         await CartPage.btnAddToCart.waitForDisplayed({ timeout: 10000 });
         await CartPage.btnAddToCart.click();
         await browser.pause(2000);
