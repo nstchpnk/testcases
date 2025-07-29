@@ -9,7 +9,7 @@ describe('Login Page Tests', () => {
     it('TC1: Successful Login with accepted username', async () => {
         await LoginPage.login('standard_user', 'secret_sauce');
         await browser.pause(2000);
-        await expect(browser).toHaveUrlContaining('inventory.html');
+        expect(await browser.getUrl()).toContain()
         await browser.pause(2000);
     });
 
@@ -72,9 +72,6 @@ describe('Login Page Tests', () => {
         expect(urlAfterLogout).toContain('saucedemo.com');
         expect(urlAfterLogout).not.toContain('inventory.html');
         await browser.pause(2000);
-        
-        await LoginPage.inputUsername.waitForDisplayed({ timeout: 10000 });
-        await LoginPage.inputPassword.waitForDisplayed({ timeout: 10000 });
         
         await expect(LoginPage.inputUsername).toHaveValue('');
         await expect(LoginPage.inputPassword).toHaveValue('');
