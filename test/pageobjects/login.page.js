@@ -2,11 +2,11 @@ import { $ } from '@wdio/globals'
 import Page from './page.js';
 
 /**
- * sub page containing specific selectors and methods for a specific page
+ * Simplified LoginPage with reliable methods
  */
 class LoginPage extends Page {
     /**
-     * define selectors using getter methods
+     * Selectors
      */
     get inputUsername() {
         return $('#user-name');
@@ -28,65 +28,55 @@ class LoginPage extends Page {
         return $('#logout_sidebar_link'); 
     }
 
-    get menuWrap() {
-        return $('.bm-menu-wrap');
-    }
-
-    get menu() {
-        return $('.bm-menu');
-    }
-
     /**
-     * a method to encapsule automation code to interact with the page
-     * e.g. to login using username and password
+     * Simple and reliable login method
      */
-    async login(username, password) {
+    async login(username, password) {        
+
         await this.inputUsername.waitForDisplayed({ timeout: 10000 });
+        await this.inputUsername.clearValue();
         await this.inputUsername.setValue(username);
+        
         await this.inputPassword.waitForDisplayed({ timeout: 10000 });
+        await this.inputPassword.clearValue();
         await this.inputPassword.setValue(password);
+        
         await this.btnSubmit.waitForDisplayed({ timeout: 10000 });
+        await this.btnSubmit.waitForClickable({ timeout: 10000 });
         await this.btnSubmit.click();
+        
+        await browser.waitUntil(async () => {
+            const url = await browser.getUrl();
+            return url.includes('inventory') || !url.includes('login');
+        }, { 
+            timeout: 15000, 
+            timeoutMsg: 'Login did not complete successfully' 
+        });
+        
     }
 
     async logout() {
+        
         await this.btnBurger.waitForDisplayed({ timeout: 10000 });
         await this.btnBurger.waitForClickable({ timeout: 10000 });
-        
         await this.btnBurger.click();
         
-        await browser.waitUntil(async () => {
-            const menuWrap = await this.menuWrap;
-            const isHidden = await menuWrap.getAttribute('hidden');
-            const ariaHidden = await menuWrap.getAttribute('aria-hidden');
-            return isHidden === null && ariaHidden === 'false';
-        }, {
-            timeout: 10000,
-            timeoutMsg: 'Menu did not open within 10 seconds'
-        });
-
-        await browser.waitUntil(async () => {
-            const menuWrap = await this.menuWrap;
-            const transform = await menuWrap.getCSSProperty('transform');
-            return !transform.value.includes('-100%');
-        }, {
-            timeout: 10000,
-            timeoutMsg: 'Menu animation did not complete'
-        });
-
-        await browser.pause(1000);
-
         await this.btnLogout.waitForDisplayed({ timeout: 10000 });
         await this.btnLogout.waitForClickable({ timeout: 10000 });
+        
         await this.btnLogout.click();
         
-        await browser.pause(2000);
+        await browser.waitUntil(async () => {
+            const url = await browser.getUrl();
+            return url.includes('login') || !url.includes('inventory');
+        }, { 
+            timeout: 10000, 
+            timeoutMsg: 'Logout did not complete successfully' 
+        });
+        
     }
 
-    /**
-     * overwrite specific options to adapt it to page object
-     */
-    open () {
+    open() {
         return super.open(''); 
     }
 }
