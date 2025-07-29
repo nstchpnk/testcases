@@ -23,6 +23,11 @@ export const config = {
     specs: [
         './test/*.js'
     ],
+
+    // specs: [
+    // './test/checkoutempty.test.js'
+    // ],
+
     // Patterns to exclude.
     exclude: [
         // 'path/to/excluded/files'
