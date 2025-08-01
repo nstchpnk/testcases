@@ -1,80 +1,52 @@
-import LoginPage from './pageobjects/login.page.js';
+import loginPage from './pageobjects/login.page.js';
 
 describe('Login Page Tests', () => {
     beforeEach(async () => {
-        await LoginPage.open();
-        await browser.pause(2000);
+        await loginPage.open();
+        await loginPage.waitForDisplayed(loginPage.inputUsername);
+        await loginPage.clearCredentials(); 
+        await browser.execute(() => localStorage.clear()); 
     });
 
     it('TC1: Successful Login with accepted username', async () => {
-        await LoginPage.login('standard_user', 'secret_sauce');
-        await browser.pause(2000);
-        expect(await browser.getUrl()).toContain()
-        await browser.pause(2000);
+        await loginPage.login('standard_user', 'secret_sauce');
+        await loginPage.waitForInventoryPage();
+        
+        const currentUrl = await loginPage.getCurrentUrl();
+        expect(currentUrl).toContain('inventory.html');
     });
 
-    it('TC2: Successful Login with unaccepted username', async () => {
-        await LoginPage.login('wrong_name', 'secret_sauce');
-        await browser.pause(2000);
-        await expect($('#login-button').isExisting()).toBe(true);
-        await browser.pause(2000);
-        await expect($('.error')).toHaveText('Username and password do not match any user in this service.');
-        await browser.pause(2000);
-    });
+    const invalidLoginTests = [
+        { testId: 'TC2', username: 'wrong_name', password: 'secret_sauce', expectedError: 'Epic sadface: Username and password do not match any user in this service' },
+        { testId: 'TC3', username: 'standard_user', password: 'wrong_password', expectedError: 'Epic sadface: Username and password do not match any user in this service' },
+        { testId: 'TC4', username: '', password: 'secret_sauce', expectedError: 'Epic sadface: Username is required' },
+        { testId: 'TC5', username: 'standard_user', password: '', expectedError: 'Epic sadface: Password is required' },
+        { testId: 'TC6', username: '@#$%user', password: 'secret_sauce', expectedError: 'Epic sadface: Username and password do not match any user in this service' }
+    ];
 
-    it('TC3: Failed Login with wrong Password', async () => {
-        await LoginPage.login('standard_user', 'wrong_password');
-        await browser.pause(2000);
-        await expect($('#login-button').isExisting()).toBe(true);
-        await browser.pause(2000);
-        await expect($('.error')).toHaveText('Username and password do not match any user in this service.');
-        await browser.pause(2000);
-    });
-
-    it('TC4: Failed Login without Username', async () => {
-        await LoginPage.login('', 'secret_sauce');
-        await browser.pause(2000);
-        await expect($('#login-button').isExisting()).toBe(true);
-        await browser.pause(2000);
-        await expect($('.error')).toHaveText('Username is required');
-        await browser.pause(2000);
-    });
-
-    it('TC5: Failed Login without Password', async () => {
-        await LoginPage.login('standard_user', '');
-        await browser.pause(2000);
-        await expect($('#login-button').isExisting()).toBe(true);
-        await browser.pause(2000);
-        await expect($('.error')).toHaveText('Password is required');
-        await browser.pause(2000);
-    });
-
-    it('TC6: Failed Login with special characters', async () => {
-        await LoginPage.login('@#$%user', 'secret_sauce');
-        await browser.pause(2000);
-        await expect($('#login-button').isExisting()).toBe(true);
-        await browser.pause(2000);
-        await expect($('.error')).toHaveText('Username and password do not match any user in this service.');
-        await browser.pause(2000);
+    invalidLoginTests.forEach(({ testId, username, password, expectedError }) => {
+        it(`${testId}: Failed login with ${username || 'empty username'} and ${password || 'empty password'}`, async () => {
+            await loginPage.login(username, password);
+            const errorText = await loginPage.verifyFailedLogin();
+            expect(errorText).toBe(expectedError);
+        });
     });
 
     it('TC7: Logout', async () => {
-        await LoginPage.login('standard_user', 'secret_sauce');
-        await browser.pause(2000);        
+        await loginPage.login('standard_user', 'secret_sauce');
+        await loginPage.waitForInventoryPage();
         
-        const urlAfterLogin = await browser.getUrl();
+        const urlAfterLogin = await loginPage.getCurrentUrl();
         expect(urlAfterLogin).toContain('inventory.html');
-        await browser.pause(2000);
         
-        await LoginPage.logout(); 
+        await loginPage.logout(); 
+        await loginPage.waitForLoginPage();
         
-        const urlAfterLogout = await browser.getUrl();
-        expect(urlAfterLogout).toContain('saucedemo.com');
+        const urlAfterLogout = await loginPage.getCurrentUrl();
         expect(urlAfterLogout).not.toContain('inventory.html');
-        await browser.pause(2000);
         
-        await expect(LoginPage.inputUsername).toHaveValue('');
-        await expect(LoginPage.inputPassword).toHaveValue('');
-        await browser.pause(2000);
+        await loginPage.waitForDisplayed(loginPage.inputUsername);
+        expect(await loginPage.inputUsername).toHaveValue('');
+        expect(await loginPage.inputPassword).toHaveValue('');
     });
 });

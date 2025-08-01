@@ -1,18 +1,8 @@
-import { $ } from '@wdio/globals'
 import Page from './page.js';
 
 class SortingPage extends Page {
-
     get sortDropdown() {
         return $('.product_sort_container');
-    }
-
-    get productNames() {
-        return $$('.inventory_item_name');
-    }
-
-    get productPrices() {
-        return $$('.inventory_item_price');
     }
 
     get inventoryItems() {
@@ -20,30 +10,29 @@ class SortingPage extends Page {
     }
 
     async selectSortOption(option) {
-        await this.sortDropdown.waitForDisplayed({ timeout: 10000 });
-        await this.sortDropdown.waitForClickable({ timeout: 10000 });
-        await browser.pause(500);
-        await this.sortDropdown.selectByAttribute('value', option);
-        await browser.pause(1000);
-        
-        await browser.waitUntil(async () => {
-            const items = await this.inventoryItems;
-            return items.length > 0;
-        }, { timeout: 10000, timeoutMsg: 'Products did not load after sorting' });
+        await this.waitForAndInteract(this.sortDropdown, (el) => el.selectByAttribute('value', option));
+
+        await this.waitUntil(async () => {
+            const itemsCount = await this.getElementsCount('.inventory_item');
+            return itemsCount > 0;
+        }, { 
+            timeoutMsg: 'Products did not load after sorting' 
+        });
     }
 
-
     async getProductNames() {
-        await browser.waitUntil(async () => {
-            const names = await this.productNames;
-            return names.length > 0;
-        }, { timeout: 10000, timeoutMsg: 'Product names did not load' });
+        await this.waitUntil(async () => {
+            const count = await this.getElementsCount('.inventory_item_name');
+            return count > 0;
+        }, { 
+            timeoutMsg: 'Product names did not load' 
+        });
 
-        const names = await this.productNames;
+        const nameElements = await this.getElements('.inventory_item_name');
         const productNames = [];
         
-        for (let nameElement of names) {
-            const name = await nameElement.getText();
+        for (let nameElement of nameElements) {
+            const name = await this.getText(nameElement);
             productNames.push(name);
         }
         
@@ -51,23 +40,24 @@ class SortingPage extends Page {
     }
 
     async getProductPrices() {
-        await browser.waitUntil(async () => {
-            const prices = await this.productPrices;
-            return prices.length > 0;
-        }, { timeout: 10000, timeoutMsg: 'Product prices did not load' });
+        await this.waitUntil(async () => {
+            const count = await this.getElementsCount('.inventory_item_price');
+            return count > 0;
+        }, { 
+            timeoutMsg: 'Product prices did not load' 
+        });
 
-        const prices = await this.productPrices;
+        const priceElements = await this.getElements('.inventory_item_price');
         const productPrices = [];
         
-        for (let priceElement of prices) {
-            const priceText = await priceElement.getText();
+        for (let priceElement of priceElements) {
+            const priceText = await this.getText(priceElement);
             const price = parseFloat(priceText.replace('$', ''));
             productPrices.push(price);
         }
         
         return productPrices;
     }
-
 
     isNamesSortedAZ(names) {
         for (let i = 0; i < names.length - 1; i++) {
@@ -77,7 +67,6 @@ class SortingPage extends Page {
         }
         return true;
     }
-
 
     isNamesSortedZA(names) {
         for (let i = 0; i < names.length - 1; i++) {
@@ -97,7 +86,6 @@ class SortingPage extends Page {
         return true;
     }
 
-
     isPricesSortedHighToLow(prices) {
         for (let i = 0; i < prices.length - 1; i++) {
             if (prices[i] < prices[i + 1]) {
@@ -108,24 +96,64 @@ class SortingPage extends Page {
     }
 
     async getCurrentSortOption() {
-        await this.sortDropdown.waitForDisplayed({ timeout: 10000 });
+        await this.waitForDisplayed(this.sortDropdown);
         return await this.sortDropdown.getValue();
     }
 
-
     async getAllSortOptions() {
-        await this.sortDropdown.waitForDisplayed({ timeout: 10000 });
-        const options = await this.sortDropdown.$$('option');
+        await this.waitForDisplayed(this.sortDropdown);
+        const options = await this.getElements('option');
         const optionValues = [];
         
         for (let option of options) {
             const value = await option.getAttribute('value');
-            optionValues.push(value);
+            const text = await option.getText();
+            optionValues.push({ value, text });
         }
         
         return optionValues;
     }
 
+    async verifySorting(option, isSortedCallback) {
+        
+        await this.selectSortOption(option);
+        
+        const currentOption = await this.getCurrentSortOption();
+        if (currentOption !== option) {
+            throw new Error(`Failed to select sort option. Expected: ${option}, Actual: ${currentOption}`);
+        }
+
+        let result;
+        if (['az', 'za'].includes(option)) {
+            const productNames = await this.getProductNames();
+            result = isSortedCallback(productNames);
+        } else if (['lohi', 'hilo'].includes(option)) {
+            const productPrices = await this.getProductPrices();
+            result = isSortedCallback(productPrices);
+        } else {
+            throw new Error(`Unsupported sort option: ${option}`);
+        }
+
+        return result;
+    }
+
+    async getProductsCount() {
+        return await this.getElementsCount('.inventory_item');
+    }
+
+    async waitForProductsToLoad() {
+        await this.waitUntil(async () => {
+            const count = await this.getProductsCount();
+            return count > 0;
+        }, {
+            timeoutMsg: 'Products did not load'
+        });
+    }
+
+    async isProductsSectionVisible() {
+        const inventoryContainer = $('.inventory_container');
+        return await this.isDisplayed(inventoryContainer);
+    }
 
     open() {
         return super.open('inventory.html');

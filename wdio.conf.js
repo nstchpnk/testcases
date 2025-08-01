@@ -25,7 +25,7 @@ export const config = {
     ],
 
     // specs: [
-    // './test/checkoutempty.test.js'
+    // './test/footer.test.js'
     // ],
 
     // Patterns to exclude.

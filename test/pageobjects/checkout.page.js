@@ -1,11 +1,6 @@
-import { $ } from '@wdio/globals'
 import Page from './page.js';
 
-/**
- * Checkout Page Object with all necessary methods for checkout flow
- */
 class CheckoutPage extends Page {
-
     get btnCheckout() {
         return $('#checkout');
     }
@@ -50,73 +45,57 @@ class CheckoutPage extends Page {
         return $('#back-to-products');
     }
 
-  
-    async proceedToCheckout() {
-        await this.btnCheckout.waitForDisplayed({ timeout: 10000 });
-        await this.btnCheckout.waitForClickable({ timeout: 10000 });
-        await this.btnCheckout.click();
+    get cartBadge() {
+        return $('.shopping_cart_badge');
+    }
 
-        await browser.waitUntil(async () => {
-            const url = await browser.getUrl();
+    get errorMessage() {
+        return $('.error-message-container');
+    }
+
+    async proceedToCheckout() {
+        await this.waitForAndInteract(this.btnCheckout, (el) => el.click());
+
+        await this.waitUntil(async () => {
+            const url = await this.getCurrentUrl();
             return url.includes('checkout-step-one.html');
         }, { 
-            timeout: 10000, 
             timeoutMsg: 'Did not navigate to checkout form page' 
         });
     }
 
     async fillCheckoutForm(firstName, lastName, postalCode) {
-        await this.inputFirstName.waitForDisplayed({ timeout: 10000 });
-        await this.inputFirstName.clearValue();
-        await this.inputFirstName.setValue(firstName);
-
-        await this.inputLastName.waitForDisplayed({ timeout: 10000 });
-        await this.inputLastName.clearValue();
-        await this.inputLastName.setValue(lastName);
-
-        await this.inputPostalCode.waitForDisplayed({ timeout: 10000 });
-        await this.inputPostalCode.clearValue();
-        await this.inputPostalCode.setValue(postalCode);
+        await this.setValue(this.inputFirstName, firstName);
+        await this.setValue(this.inputLastName, lastName);
+        await this.setValue(this.inputPostalCode, postalCode);
     }
 
     async continueToOverview() {
-        await this.btnContinue.waitForDisplayed({ timeout: 10000 });
-        await this.btnContinue.waitForClickable({ timeout: 10000 });
-        await this.btnContinue.click();
-
-        await browser.waitUntil(async () => {
-            const url = await browser.getUrl();
+        await this.waitForAndInteract(this.btnContinue, (el) => el.click());
+        await this.waitUntil(async () => {
+            const url = await this.getCurrentUrl();
             return url.includes('checkout-step-two.html');
         }, { 
-            timeout: 10000, 
             timeoutMsg: 'Did not navigate to checkout overview page' 
         });
     }
 
     async finishCheckout() {
-        await this.btnFinish.waitForDisplayed({ timeout: 10000 });
-        await this.btnFinish.waitForClickable({ timeout: 10000 });
-        await this.btnFinish.click();
-
-        await browser.waitUntil(async () => {
-            const url = await browser.getUrl();
+        await this.waitForAndInteract(this.btnFinish, (el) => el.click());
+        await this.waitUntil(async () => {
+            const url = await this.getCurrentUrl();
             return url.includes('checkout-complete.html');
         }, { 
-            timeout: 10000, 
             timeoutMsg: 'Did not navigate to checkout complete page' 
         });
     }
 
     async backToHome() {
-        await this.btnBackHome.waitForDisplayed({ timeout: 10000 });
-        await this.btnBackHome.waitForClickable({ timeout: 10000 });
-        await this.btnBackHome.click();
-
-        await browser.waitUntil(async () => {
-            const url = await browser.getUrl();
+        await this.waitForAndInteract(this.btnBackHome, (el) => el.click());
+        await this.waitUntil(async () => {
+            const url = await this.getCurrentUrl();
             return url.includes('inventory.html');
         }, { 
-            timeout: 10000, 
             timeoutMsg: 'Did not navigate back to inventory page' 
         });
     }
@@ -127,23 +106,107 @@ class CheckoutPage extends Page {
     }
 
     async getTotalPriceText() {
-        await this.totalPrice.waitForDisplayed({ timeout: 10000 });
-        return await this.totalPrice.getText();
+        await this.waitForDisplayed(this.totalPrice);
+        return await this.getText(this.totalPrice);
     }
 
     async getCompleteMessage() {
-        await this.completeHeader.waitForDisplayed({ timeout: 10000 });
-        return await this.completeHeader.getText();
+        await this.waitForDisplayed(this.completeHeader);
+        return await this.getText(this.completeHeader);
     }
 
     async isCartEmpty() {
         try {
-            const cartBadge = $('.shopping_cart_badge');
-            await cartBadge.waitForDisplayed({ timeout: 5000 });
+            await this.waitForDisplayed(this.cartBadge, 2000);
             return false; 
         } catch (error) {
             return true; 
         }
+    }
+
+    async isCartPageEmpty() {
+        const url = await this.getCurrentUrl();
+        if (!url.includes('cart.html')) {
+            return false;
+        }
+        
+        const items = await this.cartItems;
+        return items.length === 0;
+    }
+
+    async isOnCartPage() {
+        const url = await this.getCurrentUrl();
+        return url.includes('cart.html');
+    }
+
+    async tryCheckout() {
+        try {
+            const isClickable = await this.isClickable(this.btnCheckout);
+            if (!isClickable) {
+                return false;
+            }
+            
+            await this.click(this.btnCheckout);
+            
+            await this.waitUntil(async () => {
+                const url = await this.getCurrentUrl();
+                return !url.includes('cart.html') || url.includes('checkout-step-one.html');
+            }, { 
+                timeoutMsg: 'Checkout attempt timeout' 
+            });
+            
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async getErrorMessage() {
+        try {
+            await this.waitForDisplayed(this.errorMessage, 2000);
+            return await this.getText(this.errorMessage);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async isClickable(element) {
+        try {
+            await this.waitForClickable(element, 2000);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async completeCheckoutFlow(customerData) {
+        try {
+            await this.proceedToCheckout();
+            await this.fillCheckoutForm(
+                customerData.firstName, 
+                customerData.lastName, 
+                customerData.postalCode
+            );
+            await this.continueToOverview();
+            await this.finishCheckout();
+            await this.backToHome();
+            return true;
+        } catch (error) {
+            console.error('Checkout flow failed:', error.message);
+            return false;
+        }
+    }
+
+    async verifyOverviewData(expectedItemsCount) {
+        const itemsCount = await this.getOverviewItemsCount();
+        const totalPriceText = await this.getTotalPriceText();
+        
+        return {
+            itemsCount,
+            totalPriceText,
+            isItemsCountCorrect: itemsCount === expectedItemsCount,
+            hasTotalPrice: totalPriceText.includes('Total:')
+        };
     }
 
     open() {
